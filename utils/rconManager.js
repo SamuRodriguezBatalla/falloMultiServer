@@ -1,14 +1,13 @@
 const { Rcon } = require('rcon-client');
-const { getArkServers } = require('./dataManager'); // <--- Cambio aquí
+const { getArkServers } = require('./dataManager');
 
 async function sendRconCommand(guildId, command, specificServerName = null) {
-    const servers = getArkServers(guildId);
+    const servers = getArkServers(guildId); // Usa la nueva función de array
     
     if (!servers || servers.length === 0) {
         return { success: false, message: '❌ No hay servidores Ark configurados. Usa `/setupark`.' };
     }
 
-    // Filtramos si se pidió uno específico
     const targets = specificServerName 
         ? servers.filter(s => s.name === specificServerName) 
         : servers;
@@ -17,7 +16,7 @@ async function sendRconCommand(guildId, command, specificServerName = null) {
 
     const results = [];
 
-    // Ejecutar en paralelo
+    // Enviar a todos en paralelo
     await Promise.all(targets.map(async (server) => {
         try {
             const rcon = new Rcon({
@@ -38,14 +37,14 @@ async function sendRconCommand(guildId, command, specificServerName = null) {
         }
     }));
 
-    // Formatear respuesta global
+    // Formatear salida
     const successCount = results.filter(r => r.success).length;
-    const totalResponse = results.map(r => `**${r.server}:** ${r.success ? (r.response || '✅') : `❌ (${r.message})`}`).join('\n');
+    const totalResponse = results.map(r => `**${r.server}:** ${r.success ? (r.response || '✅') : `❌`}`).join('\n');
 
     return { 
-        success: successCount > 0, // Éxito si al menos uno funcionó
+        success: successCount > 0, 
         message: totalResponse,
-        rawResults: results // Para uso interno
+        rawResults: results 
     };
 }
 

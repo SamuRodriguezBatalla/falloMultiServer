@@ -22,6 +22,7 @@ module.exports = {
     },
 
     async execute(interaction) {
+        await interaction.deferReply({ ephemeral: true }); // Proteger pass
         const sub = interaction.options.getSubcommand();
         const guildId = interaction.guild.id;
 
@@ -32,22 +33,22 @@ module.exports = {
             const pass = interaction.options.getString('password');
 
             addArkServer(guildId, name, ip, port, pass);
-            return interaction.reply(`✅ Servidor **${name}** añadido al cluster.\n📡 Conexión: \`${ip}:${port}\``);
+            return interaction.editReply(`✅ Servidor **${name}** añadido al cluster.\n📡 Conexión: \`${ip}:${port}\``);
         }
 
         if (sub === 'list') {
             const servers = getArkServers(guildId);
-            if (servers.length === 0) return interaction.reply('❌ No hay servidores configurados.');
+            if (servers.length === 0) return interaction.editReply('❌ No hay servidores configurados.');
             
             const embed = new EmbedBuilder().setTitle('🦖 Cluster Configurado').setColor('Green');
             servers.forEach(s => embed.addFields({ name: s.name, value: `\`${s.ip}:${s.port}\``, inline: true }));
-            return interaction.reply({ embeds: [embed] });
+            return interaction.editReply({ embeds: [embed] });
         }
 
         if (sub === 'remove') {
             const name = interaction.options.getString('nombre');
             removeArkServer(guildId, name);
-            return interaction.reply(`🗑️ Servidor **${name}** eliminado del bot.`);
+            return interaction.editReply(`🗑️ Servidor **${name}** eliminado del bot.`);
         }
     }
 };

@@ -357,21 +357,40 @@ module.exports = {
                 return interaction.followUp('✅ Votado.');
             } catch (e) {}
         }
-	// ==================================================================
-        // 7. SISTEMA DE REPORTES (MODAL)
+        // ==================================================================
+        // 7. SISTEMA DE REPORTES (MODAL) - VERSIÓN DEBUG
         // ==================================================================
         if (interaction.isModalSubmit() && interaction.customId === 'report_modal') {
+            // 1. Le decimos a Discord "Espere, estamos procesando"
             await interaction.deferReply({ ephemeral: true });
 
-            const name = interaction.fields.getTextInputValue('report_name');
-            const reason = interaction.fields.getTextInputValue('report_reason');
-            const proof = interaction.fields.getTextInputValue('report_proof') || 'Sin pruebas adjuntas';
+            try {
+                const name = interaction.fields.getTextInputValue('report_name');
+                const reason = interaction.fields.getTextInputValue('report_reason');
+                const proof = interaction.fields.getTextInputValue('report_proof') || 'Sin pruebas adjuntas';
 
-            const config = loadGuildConfig(interaction.guild.id);
-            // Busca el canal configurado como 'reports'
-            const reportChannel = interaction.guild.channels.cache.get(config.channels.reports);
+                // 2. Cargar configuración con seguridad
+                const config = loadGuildConfig(interaction.guild.id);
+                
+                // CHECK 1: ¿Existe la config?
+                if (!config) {
+                    throw new Error('La configuración del servidor no existe. Ejecuta /setup.');
+                }
 
-            if (reportChannel) {
+                // CHECK 2: ¿Existe el ID del canal de reportes en la config?
+                if (!config.channels || !config.channels.reports) {
+                    throw new Error('El canal de reportes no está configurado en la base de datos. Ejecuta /setup.');
+                }
+
+                // 3. Buscar el canal real
+                const reportChannel = interaction.guild.channels.cache.get(config.channels.reports);
+
+                // CHECK 3: ¿El canal existe realmente en Discord?
+                if (!reportChannel) {
+                    throw new Error(`No encuentro el canal de reportes (ID: ${config.channels.reports}). Puede haber sido borrado.`);
+                }
+
+                // 4. Enviar el reporte
                 const embed = new EmbedBuilder()
                     .setTitle('🚨 Nuevo Reporte de Jugador')
                     .setColor('Red')
@@ -385,9 +404,12 @@ module.exports = {
                     .setFooter({ text: 'Sistema de Reportes • FlowShadow' });
                 
                 await reportChannel.send({ embeds: [embed] });
-                await interaction.editReply('✅ **Reporte enviado.** La administración revisará tu caso.');
-            } else {
-                await interaction.editReply('❌ Error: El canal de reportes no está configurado. Contacta a un admin.');
+                await interaction.editReply('✅ **Reporte enviado correctamente.** La administración revisará tu caso.');
+
+            } catch (error) {
+                console.error("Error en Modal Reporte:", error);
+                // Aquí le decimos al usuario EXACTAMENTE qué falló
+                await interaction.editReply(`❌ **Error al enviar el reporte:**\n${error.message}`);
             }
         }
     },

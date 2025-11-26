@@ -5,9 +5,13 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('coords')
         .setDescription('📍 Gestión de coordenadas de la tribu.')
-        .addSubcommand(s => s.setName('add').setDescription('Añadir coordenada').addStringOption(o => o.setName('nombre').setRequired(true)).addStringOption(o => o.setName('lat').setRequired(true)).addStringOption(o => o.setName('lon').setRequired(true)))
-        .addSubcommand(s => s.setName('list').setDescription('Ver lista'))
-        .addSubcommand(s => s.setName('remove').setDescription('Borrar coordenada').addStringOption(o => o.setName('nombre').setRequired(true))),
+        .addSubcommand(s => s.setName('add').setDescription('Añadir coordenada')
+            .addStringOption(o => o.setName('nombre').setDescription('Nombre del punto (Ej: Base Metal)').setRequired(true)) // <-- Faltaba descripción
+            .addStringOption(o => o.setName('lat').setDescription('Latitud').setRequired(true)) // <-- Faltaba descripción
+            .addStringOption(o => o.setName('lon').setDescription('Longitud').setRequired(true))) // <-- Faltaba descripción
+        .addSubcommand(s => s.setName('list').setDescription('Ver lista de coordenadas'))
+        .addSubcommand(s => s.setName('remove').setDescription('Borrar coordenada')
+            .addStringOption(o => o.setName('nombre').setDescription('Nombre exacto de la coordenada').setRequired(true))), // <-- Faltaba descripción
 
     async execute(interaction) {
         const tribes = loadTribes(interaction.guild.id);

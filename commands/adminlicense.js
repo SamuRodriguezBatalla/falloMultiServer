@@ -1,7 +1,8 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { addPremium, removePremium, isPremium, setUnlimited } = require('../utils/dataManager');
 
-const OWNER_ID = '749826568477474888'; // Tu ID
+// 🔒 TU ID REAL
+const OWNER_ID = '749826568477474888'; 
 
 module.exports = {
     data: new SlashCommandBuilder()
