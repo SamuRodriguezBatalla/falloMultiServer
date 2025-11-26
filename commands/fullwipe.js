@@ -7,7 +7,7 @@ const { sendRconCommand } = require('../utils/rconManager');
 async function deleteChannelsInCategory(guild, categoryId) {
     if (!categoryId) return;
     const config = require('../utils/dataManager').loadGuildConfig(guild.id);
-    if (config && config.categories.market === categoryId) return;
+    if (config && (config.categories.market === categoryId || config.categories.admin === categoryId)) return;
     const category = guild.channels.cache.get(categoryId);
     if (!category || category.type !== ChannelType.GuildCategory) return;
     for (const [channelId, channel] of category.children.cache) {
@@ -18,9 +18,9 @@ async function deleteChannelsInCategory(guild, categoryId) {
 
 function snapshotNames(guild, config) {
     if (!config.names) config.names = {};
-    const catKeys = ['private_registration', 'registration', 'tribes', 'market'];
+    const catKeys = ['private_registration', 'registration', 'tribes', 'market', 'admin'];
     catKeys.forEach(k => { if (config.categories[k]) { const c = guild.channels.cache.get(config.categories[k]); if (c) config.names[`cat_${k}`] = c.name; } });
-    const chanKeys = ['welcome', 'log', 'checkin_log', 'goodbye', 'ban_notifications', 'leader_channel', 'market', 'error_log'];
+    const chanKeys = ['welcome', 'log', 'checkin_log', 'goodbye', 'ban_notifications', 'leader_channel', 'market', 'error_log', 'admin_log', 'reports'];
     chanKeys.forEach(k => { if (config.channels[k]) { const c = guild.channels.cache.get(config.channels[k]); if (c) config.names[`ch_${k}`] = c.name; } });
     saveGuildConfig(guild.id, config);
 }
@@ -68,7 +68,7 @@ module.exports = {
                     if(leaderChan) config.channels.leader_channel = leaderChan.id; 
                 }
 
-                // ⚠️ RECREAR ERROR LOG PÚBLICO
+                // RECREAR ERROR LOG PÚBLICO
                 const nameError = config.names['ch_error_log'] || 'Eʀʀᴏʀᴇs-ᴅᴇ-Rᴇɢɪsᴛʀᴏ · 🚨';
                 const errorChan = await guild.channels.create({
                     name: nameError, type: ChannelType.GuildText, parent: newPrivateCat.id,

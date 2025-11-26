@@ -1,27 +1,53 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const { saveArkConfig } = require('../utils/dataManager');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const { addArkServer, getArkServers, removeArkServer } = require('../utils/dataManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('setupark')
-        .setDescription('⚙️ Configura la conexión RCON con el servidor de Ark.')
-        .addStringOption(o => o.setName('ip').setDescription('IP del servidor (Ej: 192.168.1.1)').setRequired(true))
-        .addIntegerOption(o => o.setName('puerto').setDescription('Puerto RCON (No el del juego. Ej: 27020)').setRequired(true))
-        .addStringOption(o => o.setName('password').setDescription('Contraseña de Admin').setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        .setDescription('⚙️ Gestión de Servidores Ark (Cluster).')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addSubcommand(s => s.setName('add').setDescription('Añadir un mapa al cluster.')
+            .addStringOption(o => o.setName('nombre').setDescription('Nombre (Ej: Island)').setRequired(true))
+            .addStringOption(o => o.setName('ip').setDescription('IP').setRequired(true))
+            .addIntegerOption(o => o.setName('puerto').setDescription('Puerto RCON').setRequired(true))
+            .addStringOption(o => o.setName('password').setDescription('Admin Password').setRequired(true)))
+        .addSubcommand(s => s.setName('list').setDescription('Ver mapas conectados.'))
+        .addSubcommand(s => s.setName('remove').setDescription('Eliminar un mapa.')
+            .addStringOption(o => o.setName('nombre').setDescription('Nombre del mapa').setRequired(true).setAutocomplete(true))),
+
+    async autocomplete(interaction) {
+        const servers = getArkServers(interaction.guild.id);
+        const focused = interaction.options.getFocused();
+        await interaction.respond(servers.filter(s => s.name.toLowerCase().includes(focused.toLowerCase())).map(s => ({ name: s.name, value: s.name })));
+    },
 
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        const sub = interaction.options.getSubcommand();
+        const guildId = interaction.guild.id;
 
-        const ip = interaction.options.getString('ip');
-        const port = interaction.options.getInteger('puerto');
-        const pass = interaction.options.getString('password');
+        if (sub === 'add') {
+            const name = interaction.options.getString('nombre');
+            const ip = interaction.options.getString('ip');
+            const port = interaction.options.getInteger('puerto');
+            const pass = interaction.options.getString('password');
 
-        try {
-            saveArkConfig(interaction.guild.id, ip, port, pass);
-            await interaction.editReply(`✅ **Conexión Guardada.**\nServidor: \`${ip}:${port}\`\nContraseña: 🔒 (Encriptada en base de datos).`);
-        } catch (e) {
-            await interaction.editReply(`❌ Error al guardar: ${e.message}`);
+            addArkServer(guildId, name, ip, port, pass);
+            return interaction.reply(`✅ Servidor **${name}** añadido al cluster.\n📡 Conexión: \`${ip}:${port}\``);
         }
-    },
+
+        if (sub === 'list') {
+            const servers = getArkServers(guildId);
+            if (servers.length === 0) return interaction.reply('❌ No hay servidores configurados.');
+            
+            const embed = new EmbedBuilder().setTitle('🦖 Cluster Configurado').setColor('Green');
+            servers.forEach(s => embed.addFields({ name: s.name, value: `\`${s.ip}:${s.port}\``, inline: true }));
+            return interaction.reply({ embeds: [embed] });
+        }
+
+        if (sub === 'remove') {
+            const name = interaction.options.getString('nombre');
+            removeArkServer(guildId, name);
+            return interaction.reply(`🗑️ Servidor **${name}** eliminado del bot.`);
+        }
+    }
 };

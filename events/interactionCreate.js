@@ -357,5 +357,38 @@ module.exports = {
                 return interaction.followUp('✅ Votado.');
             } catch (e) {}
         }
+	// ==================================================================
+        // 7. SISTEMA DE REPORTES (MODAL)
+        // ==================================================================
+        if (interaction.isModalSubmit() && interaction.customId === 'report_modal') {
+            await interaction.deferReply({ ephemeral: true });
+
+            const name = interaction.fields.getTextInputValue('report_name');
+            const reason = interaction.fields.getTextInputValue('report_reason');
+            const proof = interaction.fields.getTextInputValue('report_proof') || 'Sin pruebas adjuntas';
+
+            const config = loadGuildConfig(interaction.guild.id);
+            // Busca el canal configurado como 'reports'
+            const reportChannel = interaction.guild.channels.cache.get(config.channels.reports);
+
+            if (reportChannel) {
+                const embed = new EmbedBuilder()
+                    .setTitle('🚨 Nuevo Reporte de Jugador')
+                    .setColor('Red')
+                    .addFields(
+                        { name: '👤 Reportante', value: `${interaction.user} (\`${interaction.user.id}\`)`, inline: true },
+                        { name: '🎯 Acusado / Tribu', value: name, inline: true },
+                        { name: '📝 Motivo', value: reason, inline: false },
+                        { name: '🔗 Pruebas', value: proof, inline: false }
+                    )
+                    .setTimestamp()
+                    .setFooter({ text: 'Sistema de Reportes • FlowShadow' });
+                
+                await reportChannel.send({ embeds: [embed] });
+                await interaction.editReply('✅ **Reporte enviado.** La administración revisará tu caso.');
+            } else {
+                await interaction.editReply('❌ Error: El canal de reportes no está configurado. Contacta a un admin.');
+            }
+        }
     },
 };

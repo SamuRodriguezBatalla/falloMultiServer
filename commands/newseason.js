@@ -7,9 +7,13 @@ const { sendRconCommand } = require('../utils/rconManager');
 async function deleteChannelsInCategory(guild, categoryId) {
     if (!categoryId) return;
     const config = require('../utils/dataManager').loadGuildConfig(guild.id);
-    if (config && config.categories.market === categoryId) return;
+    
+    // PROTECCIÓN: Mercado y Admin
+    if (config && (config.categories.market === categoryId || config.categories.admin === categoryId)) return;
+
     const category = guild.channels.cache.get(categoryId);
     if (!category || category.type !== ChannelType.GuildCategory) return;
+
     for (const [channelId, channel] of category.children.cache) {
         if (channel.type === ChannelType.GuildText || channel.type === ChannelType.GuildVoice) {
             await channel.delete().catch(e => console.log(`Error borrando canal ${channel.name}: ${e.message}`));
@@ -20,9 +24,9 @@ async function deleteChannelsInCategory(guild, categoryId) {
 
 function snapshotNames(guild, config) {
     if (!config.names) config.names = {};
-    const catKeys = ['private_registration', 'registration', 'tribes', 'market'];
+    const catKeys = ['private_registration', 'registration', 'tribes', 'market', 'admin'];
     catKeys.forEach(k => { if (config.categories[k]) { const c = guild.channels.cache.get(config.categories[k]); if (c) config.names[`cat_${k}`] = c.name; } });
-    const chanKeys = ['welcome', 'log', 'checkin_log', 'goodbye', 'ban_notifications', 'leader_channel', 'market', 'error_log'];
+    const chanKeys = ['welcome', 'log', 'checkin_log', 'goodbye', 'ban_notifications', 'leader_channel', 'market', 'error_log', 'admin_log', 'reports'];
     chanKeys.forEach(k => { if (config.channels[k]) { const c = guild.channels.cache.get(config.channels[k]); if (c) config.names[`ch_${k}`] = c.name; } });
     saveGuildConfig(guild.id, config);
 }
@@ -75,12 +79,11 @@ module.exports = {
                 if(leaderChan) config.channels.leader_channel = leaderChan.id;
             }
             
-            // ⚠️ CAMBIO AQUÍ: RECREAR ERROR LOG PÚBLICO
             const nameError = config.names['ch_error_log'] || 'Eʀʀᴏʀᴇs-ᴅᴇ-Rᴇɢɪsᴛʀᴏ · 🚨';
             const errorChan = await guild.channels.create({
                 name: nameError, type: ChannelType.GuildText, parent: newPrivateCat.id,
                 permissionOverwrites: [
-                    { id: guild.id, allow: [PermissionFlagsBits.ViewChannel], deny: [PermissionFlagsBits.SendMessages] }, // Visible
+                    { id: guild.id, allow: [PermissionFlagsBits.ViewChannel], deny: [PermissionFlagsBits.SendMessages] }, 
                     { id: interaction.client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
                 ]
             });
@@ -131,12 +134,12 @@ module.exports = {
             }
 
             let syncText = autoSync ? "Abriendo canales..." : "Canales: Manuales.";
-            await interaction.editReply(`✅ **Season ${config.season} iniciada.**\n- Desbaneados: ${unbannedCount} Discord / ${arkUnbans} Ark.\n- ${syncText}`);
+            await interaction.editReply(`✅ **Season ${config.season} iniciada.**\n- ${syncText}`);
             
             if (autoSync) await sincronizarRegistros(guild, config);
 
         } catch (e) {
-            console.error("Error FATAL en New Season:", e);
+            console.error("Error FATAL:", e);
             await interaction.editReply(`❌ Error: ${e.message}`);
         }
     }
