@@ -53,6 +53,17 @@ function resetServerData(guildId) {
     const wipeTransaction = db.transaction(() => { db.prepare('DELETE FROM active_tribes WHERE guild_id = ?').run(guildId); db.prepare('DELETE FROM season_history WHERE guild_id = ?').run(guildId); db.prepare('DELETE FROM pending_registrations').run(); }); 
     wipeTransaction(); return loadGuildConfig(guildId); 
 }
+// NUEVA FUNCIÓN: Guarda solo UNA tribu (evita sobrescribir las demás)
+function saveTribe(guildId, tribeName, tribeData) {
+    const insert = db.prepare('INSERT OR REPLACE INTO active_tribes (guild_id, tribe_name, data_json) VALUES (?, ?, ?)');
+    insert.run(guildId, tribeName, JSON.stringify(tribeData));
+}
+
+// NUEVA FUNCIÓN: Borra solo UNA tribu
+function deleteTribe(guildId, tribeName) {
+    const del = db.prepare('DELETE FROM active_tribes WHERE guild_id = ? AND tribe_name = ?');
+    del.run(guildId, tribeName);
+}
 
 // --- LICENCIAS (SIN TIER) ---
 function addPremium(guildId, clientName) { try { db.prepare('INSERT OR REPLACE INTO premium_guilds (guild_id, client_name, added_at, is_unlimited, last_alert) VALUES (?, ?, ?, 0, 0)').run(guildId, clientName, Date.now()); return true; } catch (e) { return false; } }
@@ -96,5 +107,7 @@ module.exports = {
     getAvailableSeasons, addPermanentBan, removePermanentBan, isPermabanned, getPermabanList,
     addArkServer, getArkServers, removeArkServer, // Exportaciones Cluster
     addGameBan, removeGameBan, getGameBans, getExpiredGameBans,
-    initRegistrationState, getRegistrationState, updateRegistrationState, deleteRegistrationState
+    initRegistrationState, getRegistrationState, updateRegistrationState, deleteRegistrationState,
+    saveTribe,
+    deleteTribe
 };

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, StringSelectMenuBuilder, ActionRowBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
-const { loadTribes, saveTribes, loadGuildConfig } = require('../utils/dataManager');
+const { loadTribes, saveTribes, saveTribe, loadGuildConfig } = require('../utils/dataManager');
 const { updateLog } = require('../utils/logger');
 const { generateTribeHelpEmbed } = require('../utils/helpGenerator');
 const { updateTribePanel } = require('../utils/tribePanel'); // <--- NUEVO IMPORT
@@ -94,7 +94,7 @@ module.exports = {
             const NOTIFICATION_COOLDOWN = 12 * 60 * 60 * 1000; 
 
             myTribeData.lastActive = now;
-            saveTribes(guildId, tribes);
+            saveTribes(guildId, myTribeName, myTribeData);
 
             // Actualizar panel para refrescar warns/info si hace falta
             await updateTribePanel(interaction.guild, myTribeName);
@@ -119,7 +119,7 @@ module.exports = {
 
                     if (sentMsg) {
                         myTribeData.lastCheckinMsgId = sentMsg.id;
-                        saveTribes(guildId, tribes);
+                        saveTribes(guildId, myTribeName, myTribeData);
                     }
                 }
                 return interaction.reply({ content: `✅ **Check-in completado.**`, flags: MessageFlags.Ephemeral });

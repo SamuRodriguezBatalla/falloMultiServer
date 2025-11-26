@@ -36,7 +36,8 @@ module.exports = {
             return;
         }
 
-        if (!interaction.isButton() && !interaction.isStringSelectMenu()) return;
+        // AÑADIMOS "&& !interaction.isModalSubmit()" PARA QUE NO BLOQUEE LOS FORMULARIOS
+	if (!interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isModalSubmit()) return;
 
         // ==================================================================
         // 1. REGISTRO: SOLICITUD DE INGRESO A TRIBU (join_)

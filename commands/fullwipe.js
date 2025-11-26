@@ -11,7 +11,10 @@ async function deleteChannelsInCategory(guild, categoryId) {
     const category = guild.channels.cache.get(categoryId);
     if (!category || category.type !== ChannelType.GuildCategory) return;
     for (const [channelId, channel] of category.children.cache) {
-        if (channel.type === ChannelType.GuildText || channel.type === ChannelType.GuildVoice) await channel.delete().catch(()=>{});
+        if (channel.type === ChannelType.GuildText || channel.type === ChannelType.GuildVoice){
+		await channel.delete().catch(()=>{});
+		await new Promise(res => setTimeout(res, 500));
+	}
     }
     await category.delete().catch(()=>{});
 }

@@ -1,22 +1,17 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
-const { loadTribes, saveTribes, loadGuildConfig } = require('../utils/dataManager');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+// 1. Importamos saveTribe en lugar de saveTribes
+const { loadTribes, saveTribe, loadGuildConfig } = require('../utils/dataManager');
 const { logToTribe } = require('../utils/tribeLog');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('diplomacia')
         .setDescription('Gestión avanzada de relaciones, guerras y raids.')
-        // ALIANZA (SOLICITUD)
         .addSubcommand(s => s.setName('alianza').setDescription('🕊️ Envía solicitud de alianza (Requiere aceptación).').addStringOption(o => o.setName('tribu_objetivo').setDescription('Nombre de la tribu').setAutocomplete(true).setRequired(true)))
-        // ROMPER ALIANZA (NUEVO)
         .addSubcommand(s => s.setName('romper_alianza').setDescription('💔 Romper una alianza existente y borrar el canal.').addStringOption(o => o.setName('tribu_objetivo').setDescription('Nombre de la tribu aliada').setAutocomplete(true).setRequired(true)))
-        // GUERRA
         .addSubcommand(s => s.setName('guerra').setDescription('⚔️ Declara la guerra (Crea canal de conflicto).').addStringOption(o => o.setName('tribu_objetivo').setDescription('Nombre de la tribu').setAutocomplete(true).setRequired(true)))
-        // PAZ
         .addSubcommand(s => s.setName('paz').setDescription('🏳️ Proponer tratado de paz (Elimina guerra).').addStringOption(o => o.setName('tribu_objetivo').setDescription('Nombre de la tribu').setAutocomplete(true).setRequired(true)))
-        // RAIDEO INICIO
         .addSubcommand(s => s.setName('raideo').setDescription('🔥 ¡ALERTA DE RAID! Iniciar ataque.').addStringOption(o => o.setName('tribu_objetivo').setDescription('Nombre de la tribu').setAutocomplete(true).setRequired(true)))
-        // RAIDEO FIN
         .addSubcommand(s => s.setName('fin_raid').setDescription('🏁 Reportar resultado de un raid.').addStringOption(o => o.setName('tribu_objetivo').setDescription('Nombre de la tribu atacada').setAutocomplete(true).setRequired(true))
             .addStringOption(o => o.setName('resultado').setDescription('¿Cómo fue?').setRequired(true).addChoices({ name: '✅ Éxito (Wipe/Loot)', value: 'exito' }, { name: '❌ Fallido (Retirada/Defensa)', value: 'fallido' }))),
 
@@ -56,7 +51,7 @@ module.exports = {
         await interaction.deferReply();
 
         // ==================================================================
-        // 🕊️ ALIANZA (SOLICITUD)
+        // 🕊️ ALIANZA (SOLICITUD) - (No guarda en DB, solo envía mensaje)
         // ==================================================================
         if (subcommand === 'alianza') {
             if (myTribeData.alliances?.includes(targetName)) return interaction.editReply('❌ Ya sois aliados.');
@@ -91,10 +86,8 @@ module.exports = {
                 return interaction.editReply(`❌ No tienes una alianza con **${targetName}**.`);
             }
 
-            // 1. Buscar y eliminar el canal de alianza
             let deletedChannel = false;
             if (myTribeData.allianceChannels) {
-                // Buscamos el canal asociado a esta tribu
                 const entryIdx = myTribeData.allianceChannels.findIndex(x => x.with === targetName);
                 
                 if (entryIdx !== -1) {
@@ -104,26 +97,25 @@ module.exports = {
                         await ch.delete('Alianza rota').catch(()=>{}); 
                         deletedChannel = true; 
                     }
-                    // Borrar del array
                     myTribeData.allianceChannels.splice(entryIdx, 1);
                 }
             }
 
-            // 2. Limpiar DB (Arrays de alianzas)
+            // Actualizar arrays
             myTribeData.alliances = myTribeData.alliances.filter(t => t !== targetName);
             
             if (targetTribeData.alliances) {
                 targetTribeData.alliances = targetTribeData.alliances.filter(t => t !== myTribeName);
             }
             
-            // Limpiar referencia de canal en la otra tribu también por limpieza
             if (targetTribeData.allianceChannels) {
                 targetTribeData.allianceChannels = targetTribeData.allianceChannels.filter(x => x.with !== myTribeName);
             }
 
-            saveTribes(guild.id, tribes);
+            // ⚠️ AQUÍ ESTÁ EL CAMBIO: Guardamos las dos tribus por separado
+            saveTribe(guild.id, myTribeName, myTribeData);
+            saveTribe(guild.id, targetName, targetTribeData);
 
-            // 3. Notificar
             await logToTribe(guild, targetTribeData, '💔 Alianza Rota', `La tribu **${myTribeName}** ha roto la alianza.\nEl canal compartido ha sido eliminado.`, 'Red');
             await logToTribe(guild, myTribeData, '💔 Alianza Rota', `Habéis roto la alianza con **${targetName}**.`, 'Red');
 
@@ -137,7 +129,7 @@ module.exports = {
             if (!myTribeData.wars) myTribeData.wars = [];
             if (myTribeData.wars.includes(targetName)) return interaction.editReply('❌ Ya estáis en guerra con ellos.');
 
-            const catTribes = config.categories.tribes; // USA LA CATEGORIA DE TRIBUS
+            const catTribes = config.categories.tribes;
             const myRole = guild.roles.cache.find(r => r.name === myTribeName);
             const targetRole = guild.roles.cache.find(r => r.name === targetName);
 
@@ -150,7 +142,7 @@ module.exports = {
                 warChannel = await guild.channels.create({
                     name: channelName,
                     type: ChannelType.GuildText,
-                    parent: catTribes, // <--- MISMA CATEGORÍA QUE LAS TRIBUS
+                    parent: catTribes,
                     topic: `Zona de Guerra: ${myTribeName} vs ${targetName}`,
                     permissionOverwrites: [
                         { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -168,7 +160,9 @@ module.exports = {
             if (!myTribeData.warChannels) myTribeData.warChannels = [];
             if (warChannel) myTribeData.warChannels.push({ with: targetName, channelId: warChannel.id });
 
-            saveTribes(guild.id, tribes);
+            // ⚠️ CAMBIO: Guardamos ambas tribus por separado
+            saveTribe(guild.id, myTribeName, myTribeData);
+            saveTribe(guild.id, targetName, targetTribeData);
 
             if (warChannel) await warChannel.send(`⚔️ **GUERRA DECLARADA**\n**${myTribeName}** 🆚 **${targetName}**\nQue gane el mejor.`);
             
@@ -204,7 +198,9 @@ module.exports = {
                 targetTribeData.warChannels = targetTribeData.warChannels.filter(x => x.with !== myTribeName);
             }
 
-            saveTribes(guild.id, tribes);
+            // ⚠️ CAMBIO: Guardamos ambas tribus por separado
+            saveTribe(guild.id, myTribeName, myTribeData);
+            saveTribe(guild.id, targetName, targetTribeData);
 
             await logToTribe(guild, targetTribeData, '🏳️ Tratado de Paz', `**${myTribeName}** ha retirado la declaración de guerra.`, '#FFFFFF');
             await logToTribe(guild, myTribeData, '🏳️ Paz Firmada', `Habéis finalizado la guerra con **${targetName}**.`, '#FFFFFF');
@@ -213,7 +209,7 @@ module.exports = {
         }
 
         // ==================================================================
-        // 🔥 RAIDEO (INICIO)
+        // 🔥 RAIDEO (INICIO) - (No requiere cambios de DB)
         // ==================================================================
         if (subcommand === 'raideo') {
             const alertChannel = config.channels.log ? guild.channels.cache.get(config.channels.log) : interaction.channel;
@@ -227,7 +223,7 @@ module.exports = {
         }
 
         // ==================================================================
-        // 🏁 FIN RAID (REPORTE)
+        // 🏁 FIN RAID (REPORTE) - (No requiere cambios de DB)
         // ==================================================================
         if (subcommand === 'fin_raid') {
             const result = interaction.options.getString('resultado');

@@ -16,7 +16,8 @@ async function deleteChannelsInCategory(guild, categoryId) {
 
     for (const [channelId, channel] of category.children.cache) {
         if (channel.type === ChannelType.GuildText || channel.type === ChannelType.GuildVoice) {
-            await channel.delete().catch(e => console.log(`Error borrando canal ${channel.name}: ${e.message}`));
+           await channel.delete().catch(e => console.log(`Error borrando canal ${channel.name}: ${e.message}`));
+	   await new Promise(res => setTimeout(res, 500));
         }
     }
     await category.delete().catch(e => console.log(`Error borrando categoría ${category.name}: ${e.message}`));

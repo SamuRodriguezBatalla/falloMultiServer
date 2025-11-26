@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { loadTribes, saveTribes } = require('../utils/dataManager');
+const { loadTribes, saveTribes, saveTribe } = require('../utils/dataManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -36,7 +36,7 @@ module.exports = {
             const lon = interaction.options.getString('lon');
             
             myTribeData.coords.push({ name, lat, lon, addedBy: interaction.user.tag });
-            saveTribes(interaction.guild.id, tribes);
+            saveTribes(interaction.guild.id, myTribeName, myTribeData);
             return interaction.reply(`📍 Coordenada **${name}** (${lat}, ${lon}) guardada.`);
         }
 
@@ -57,7 +57,7 @@ module.exports = {
             
             if (myTribeData.coords.length === initLen) return interaction.reply('❌ No encontré esa coordenada.');
             
-            saveTribes(interaction.guild.id, tribes);
+            saveTribes(interaction.guild.id, myTribeName, myTribeData);
             return interaction.reply(`🗑️ Coordenada **${name}** eliminada.`);
         }
     },
